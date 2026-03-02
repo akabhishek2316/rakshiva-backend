@@ -16,7 +16,14 @@ admin.initializeApp({
   databaseURL: "https://rakshak-safety-app-default-rtdb.firebaseio.com/",
 });
 
+app.get("/", (req, res) => {
+  res.send("Rakshiva backend is running 🚀");
+});
+
 app.post("/send-notification", async (req, res) => {
+
+
+  
   try {
     const { userId, title, body } = req.body;
 
@@ -53,6 +60,8 @@ app.post("/send-notification", async (req, res) => {
     if (!token) {
       return res.status(404).json({ error: "No token found" });
     }
+
+
 
     const message = {
       notification: {
