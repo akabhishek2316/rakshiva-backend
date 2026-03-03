@@ -70,31 +70,26 @@ app.post("/send-notification", async (req, res) => {
 
     const emergencyId = `RK-${Date.now()}`;
 
-    const message = {
+  const message = {
   tokens: tokens,
 
-  notification: {   // 🔥 ADD THIS
-    title: "🚨 EMERGENCY ALERT",
-    body: `${userName || "User"} needs immediate assistance`
-  },
-
   data: {
+    title: "🚨 CRITICAL SOS ALERT",
+    body:
+      `⚠️ Immediate action required\n` +
+      `👤 ${userName}\n` +
+      `📍 ${city}\n` +
+      `🕒 ${new Date().toLocaleTimeString("en-IN")}`,
     userName: userName || "",
     lat: String(lat || ""),
     lng: String(lng || ""),
     city: city || "",
     phoneNumber: phoneNumber || "",
-    emergencyId: emergencyId,
-    timestamp: String(Date.now()),
   },
 
   android: {
     priority: "high",
-    notification: {
-      sound: "default",
-      channelId: "emergency_channel"
-    }
-  }
+  },
 };
 
 await admin.messaging().sendEachForMulticast(message);
