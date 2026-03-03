@@ -24,6 +24,10 @@ app.post("/send-notification", async (req, res) => {
   try {
     const { userId, userName, lat, lng, city, phoneNumber } = req.body;
 
+    if (!userId) {
+      return res.status(400).json({ error: "userId required" });
+    }
+
     const guardianSnap = await admin
       .database()
       .ref(`users/${userId}/linkedGuardians`)
@@ -35,28 +39,25 @@ app.post("/send-notification", async (req, res) => {
 
     const guardianIds = Object.keys(guardianSnap.val());
 
-    let tokens = [];
-
-    // 🔥 Loop through all guardians
-    for (const guardianId of guardianIds) {
+    // 🔥 Fetch tokens in parallel
+    const tokenPromises = guardianIds.map(async (guardianId) => {
       const activeDeviceSnap = await admin
         .database()
         .ref(`guardians/${guardianId}/activeDevice`)
         .once("value");
 
       const activeDevice = activeDeviceSnap.val();
-      if (!activeDevice) continue;
+      if (!activeDevice) return null;
 
       const tokenSnap = await admin
         .database()
         .ref(`guardians/${guardianId}/devices/${activeDevice}/token`)
         .once("value");
 
-      const token = tokenSnap.val();
-      if (token) {
-        tokens.push(token);
-      }
-    }
+      return tokenSnap.val();
+    });
+
+    const tokens = (await Promise.all(tokenPromises)).filter(Boolean);
 
     if (tokens.length === 0) {
       return res.status(404).json({ error: "No valid tokens found" });
@@ -69,29 +70,31 @@ app.post("/send-notification", async (req, res) => {
 
     const emergencyId = `RK-${Date.now()}`;
 
-  const message = {
-  tokens: tokens,
-  data: {
-    title: "🚨 EMERGENCY ALERT",
-    body: `${userName} needs immediate assistance\n📍 ${city} • ${time}\nLive location active`,
-    userName: userName,
-    lat: String(lat),
-    lng: String(lng),
-    city: city,
-    phoneNumber: phoneNumber || "",
-    emergencyId: emergencyId,
-    timestamp: String(Date.now()),
-  },
-  android: {
-    priority: "high",
-  }
-};
+    const message = {
+      tokens: tokens,
+      data: {
+        title: "🚨 EMERGENCY ALERT",
+        body: `${userName || "User"} needs immediate assistance\n📍 ${city || "Unknown location"} • ${time}\nLive location active`,
+        userName: userName || "",
+        lat: String(lat || ""),
+        lng: String(lng || ""),
+        city: city || "",
+        phoneNumber: phoneNumber || "",
+        emergencyId: emergencyId,
+        timestamp: String(Date.now()),
+      },
+      android: {
+        priority: "high",
+      },
+    };
 
-const response = await admin.messaging().sendEachForMulticast(message);
+    console.log("Sending to tokens:", tokens.length);
 
-    
+    const response = await admin.messaging().sendEachForMulticast(message);
 
-    res.status(200).json({
+    console.log("FCM Response:", response);
+
+    return res.status(200).json({
       success: true,
       sent: response.successCount,
       failed: response.failureCount,
@@ -99,7 +102,10 @@ const response = await admin.messaging().sendEachForMulticast(message);
 
   } catch (error) {
     console.error("Error sending notification:", error);
-    res.status(500).json({ success: false, error });
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 });
 
