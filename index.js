@@ -17,15 +17,12 @@ admin.initializeApp({
 });
 
 app.get("/", (req, res) => {
-  res.send("Rakshiva backend is running 🚀");
+  res.send("Rakshiva backend is running for multi guardian 🚀");
 });
 
 app.post("/send-notification", async (req, res) => {
-
-
-  
   try {
-    const { userId, title, body } = req.body;
+    const { userId, userName, lat, lng, city } = req.body;
 
     const guardianSnap = await admin
       .database()
@@ -37,46 +34,69 @@ app.post("/send-notification", async (req, res) => {
     }
 
     const guardianIds = Object.keys(guardianSnap.val());
-    const guardianId = guardianIds[0];
 
-    const activeDeviceSnap = await admin
-      .database()
-      .ref(`guardians/${guardianId}/activeDevice`)
-      .once("value");
+    let tokens = [];
 
-    const activeDevice = activeDeviceSnap.val();
+    // 🔥 Loop through all guardians
+    for (const guardianId of guardianIds) {
+      const activeDeviceSnap = await admin
+        .database()
+        .ref(`guardians/${guardianId}/activeDevice`)
+        .once("value");
 
-    if (!activeDevice) {
-      return res.status(404).json({ error: "No active device found" });
+      const activeDevice = activeDeviceSnap.val();
+      if (!activeDevice) continue;
+
+      const tokenSnap = await admin
+        .database()
+        .ref(`guardians/${guardianId}/devices/${activeDevice}/token`)
+        .once("value");
+
+      const token = tokenSnap.val();
+      if (token) {
+        tokens.push(token);
+      }
     }
 
-    const tokenSnap = await admin
-      .database()
-      .ref(`guardians/${guardianId}/devices/${activeDevice}/token`)
-      .once("value");
-
-    const token = tokenSnap.val();
-
-    if (!token) {
-      return res.status(404).json({ error: "No token found" });
+    if (tokens.length === 0) {
+      return res.status(404).json({ error: "No valid tokens found" });
     }
 
+    const time = new Date().toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
+    const emergencyId = `RK-${Date.now()}`;
 
     const message = {
       notification: {
-        title,
-        body,
+        title: "🚨 EMERGENCY ALERT",
+        body: `${userName} needs immediate assistance\n📍 ${city} • ${time}\nLive location active`,
       },
       data: {
-        route: "/guardian",
+        type: "severe_emergency",
+        userName: userName,
+        lat: String(lat),
+        lng: String(lng),
+        city: city,
+        emergencyId: emergencyId,
+        timestamp: String(Date.now()),
       },
-      token,
+      android: {
+        priority: "high",
+      },
+      tokens: tokens,   // 🔥 multiple tokens
     };
 
-    const response = await admin.messaging().send(message);
+    const response = await admin.messaging().sendMulticast(message);
 
-    res.status(200).json({ success: true, response });
+    res.status(200).json({
+      success: true,
+      sent: response.successCount,
+      failed: response.failureCount,
+    });
+
   } catch (error) {
     console.error("Error sending notification:", error);
     res.status(500).json({ success: false, error });
