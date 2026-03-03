@@ -80,6 +80,7 @@ app.post("/send-notification", async (req, res) => {
         lat: String(lat),
         lng: String(lng),
         city: city,
+        phone: userPhone || "", 
         emergencyId: emergencyId,
         timestamp: String(Date.now()),
       },
