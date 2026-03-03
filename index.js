@@ -22,7 +22,7 @@ app.get("/", (req, res) => {
 
 app.post("/send-notification", async (req, res) => {
   try {
-    const { userId, userName, lat, lng, city } = req.body;
+    const { userId, userName, lat, lng, city, userPhone } = req.body;
 
     const guardianSnap = await admin
       .database()
@@ -80,7 +80,7 @@ app.post("/send-notification", async (req, res) => {
         lat: String(lat),
         lng: String(lng),
         city: city,
-        phone: userPhone || "", 
+        userPhone: userPhone || "", 
         emergencyId: emergencyId,
         timestamp: String(Date.now()),
       },
