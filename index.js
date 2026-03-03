@@ -70,27 +70,29 @@ app.post("/send-notification", async (req, res) => {
     const emergencyId = `RK-${Date.now()}`;
 
     const message = {
-      notification: {
-        title: "🚨 EMERGENCY ALERT",
-        body: `${userName} needs immediate assistance\n📍 ${city} • ${time}\nLive location active`,
-      },
-      data: {
-        type: "severe_emergency",
-        userName: userName,
-        lat: String(lat),
-        lng: String(lng),
-        city: city,
-        phoneNumber: phoneNumber || "", 
-        emergencyId: emergencyId,
-        timestamp: String(Date.now()),
-      },
-      android: {
-        priority: "high",
-      },
-      tokens: tokens,   // 🔥 multiple tokens
-    };
+  tokens: tokens,
+  notification: {
+    title: "🚨 EMERGENCY ALERT",
+    body: `${userName} needs immediate assistance\n📍 ${city} • ${time}\nLive location active`,
+  },
+  data: {
+    type: "severe_emergency",
+    userName: userName,
+    lat: String(lat),
+    lng: String(lng),
+    city: city,
+    phoneNumber: phoneNumber || "",
+    emergencyId: emergencyId,
+    timestamp: String(Date.now()),
+  },
+  android: {
+    priority: "high",
+  },
+};
 
-    const response = await admin.messaging().sendMulticast(message);
+const response = await admin.messaging().sendEachForMulticast(message);
+
+    
 
     res.status(200).json({
       success: true,
