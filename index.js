@@ -69,14 +69,11 @@ app.post("/send-notification", async (req, res) => {
 
     const emergencyId = `RK-${Date.now()}`;
 
-    const message = {
+  const message = {
   tokens: tokens,
-  notification: {
+  data: {
     title: "🚨 EMERGENCY ALERT",
     body: `${userName} needs immediate assistance\n📍 ${city} • ${time}\nLive location active`,
-  },
-  data: {
-    type: "severe_emergency",
     userName: userName,
     lat: String(lat),
     lng: String(lng),
@@ -87,7 +84,7 @@ app.post("/send-notification", async (req, res) => {
   },
   android: {
     priority: "high",
-  },
+  }
 };
 
 const response = await admin.messaging().sendEachForMulticast(message);
