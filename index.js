@@ -22,12 +22,27 @@ app.get("/", (req, res) => {
 
 app.post("/send-notification", async (req, res) => {
   try {
-    const { userId, userName, lat, lng, city, phoneNumber } = req.body;
+    const { userId, lat, lng, city, phoneNumber, battery } = req.body;
 
     if (!userId) {
       return res.status(400).json({ error: "userId required" });
     }
 
+    // 🔥 Fetch user data directly from DB (authoritative source)
+    const userSnap = await admin
+      .database()
+      .ref(`users/${userId}`)
+      .once("value");
+
+    if (!userSnap.exists()) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const userData = userSnap.val();
+    const userName = userData.name || "User";
+    const userPhone = userData.phone || phoneNumber || "";
+
+    // 🔥 Fetch linked guardians
     const guardianSnap = await admin
       .database()
       .ref(`users/${userId}/linkedGuardians`)
@@ -39,7 +54,6 @@ app.post("/send-notification", async (req, res) => {
 
     const guardianIds = Object.keys(guardianSnap.val());
 
-    // 🔥 Fetch tokens in parallel
     const tokenPromises = guardianIds.map(async (guardianId) => {
       const activeDeviceSnap = await admin
         .database()
@@ -70,29 +84,47 @@ app.post("/send-notification", async (req, res) => {
 
     const emergencyId = `RK-${Date.now()}`;
 
-  const message = {
-  tokens: tokens,
+    // 🔥 Smart title logic
+    let title = `🚨 ${userName} Needs Immediate Help!`;
 
-  data: {
-    title: "🚨 CRITICAL SOS ALERT",
-    body:
-      `⚠️ Immediate action required\n` +
-      `👤 ${userName}\n` +
-      `📍 ${city}\n` +
-      `🕒 ${new Date().toLocaleTimeString("en-IN")}`,
-    userName: userName || "",
-    lat: String(lat || ""),
-    lng: String(lng || ""),
-    city: city || "",
-    phoneNumber: phoneNumber || "",
-  },
+    if (battery && Number(battery) < 20) {
+      title = `🚨 CRITICAL ALERT - ${userName}`;
+    }
 
-  android: {
-    priority: "high",
-  },
-};
+    const body =
+      `📍 ${city || "Location shared"}\n` +
+      `🔋 Battery: ${battery || "Unknown"}%\n` +
+      `⏰ ${time}\n` +
+      `Tap to track live location.`;
 
-await admin.messaging().sendEachForMulticast(message);
+    const message = {
+      tokens: tokens,
+
+      notification: {
+        title: title,
+        body: body,
+      },
+
+      data: {
+        userId: userId,
+        userName: userName,
+        lat: String(lat || ""),
+        lng: String(lng || ""),
+        city: city || "",
+        phoneNumber: userPhone,
+        battery: String(battery || ""),
+        emergencyId: emergencyId,
+        timestamp: String(Date.now()),
+      },
+
+      android: {
+        priority: "high",
+        notification: {
+          sound: "default",
+          channelId: "emergency_channel",
+        },
+      },
+    };
 
     console.log("Sending to tokens:", tokens.length);
 
