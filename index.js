@@ -93,7 +93,8 @@ app.post("/send-notification", async (req, res) => {
     }
 
     const body =
-      `📍 ${city || "Location shared"}\n` +
+      `📍 ${city || "Location shared"}\n` + 
+      ` ${lat}, ${lng}` +
       `🔋 Battery: ${battery || "Unknown"}%\n` +
       `⏰ ${time}\n` +
       `Tap to track live location.`;
