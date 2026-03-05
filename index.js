@@ -133,6 +133,21 @@ app.post("/send-notification", async (req, res) => {
     const response = await admin.messaging().sendEachForMulticast(message);
 
     console.log("FCM Response:", response);
+
+    // 🔥 INVALID TOKEN REMOVE LOGIC
+response.responses.forEach((resp, index) => {
+  if (!resp.success) {
+    const errorCode = resp.error?.code;
+
+    if (
+      errorCode === "messaging/registration-token-not-registered" ||
+      errorCode === "messaging/invalid-registration-token"
+    ) {
+      console.log("Invalid token detected:", tokens[index]);
+    }
+  }
+});
+
     console.log(JSON.stringify(response, null, 2));
 
     return res.status(200).json({
