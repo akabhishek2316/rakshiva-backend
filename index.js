@@ -133,6 +133,7 @@ app.post("/send-notification", async (req, res) => {
     const response = await admin.messaging().sendEachForMulticast(message);
 
     console.log("FCM Response:", response);
+    console.log(JSON.stringify(response, null, 2));
 
     return res.status(200).json({
       success: true,
